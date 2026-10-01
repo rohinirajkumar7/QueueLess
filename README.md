@@ -147,3 +147,33 @@ docker compose exec backend pytest -v
 # Run k6 load test (requires k6 or Docker)
 docker run --rm -v "${PWD}/loadtests:/loadtests" --network="queueless-new_default" grafana/k6:latest run -e BASE_URL=http://backend:8000 -e VUS=100 -e DURATION=30s /loadtests/queueless.js
 ```
+
+---
+
+## Production Deployment
+
+QueueLess supports two primary deployment strategies:
+
+### Option A: Single VPS (Docker Compose + Automated SSL)
+Best for cost efficiency (e.g., AWS EC2, DigitalOcean, Hetzner, or Linode):
+1. Install Docker and Docker Compose on Ubuntu.
+2. Clone the repository and configure `.env` with production secrets.
+3. Start the containers:
+   ```bash
+   docker compose up -d --build
+   ```
+4. Point a reverse proxy (such as Caddy or Nginx) to the containers for automatic Let's Encrypt HTTPS:
+   - Frontend: Reverse proxy to `localhost:3000`
+   - Backend API & WebSockets: Reverse proxy to `localhost:8000`
+
+### Option B: Managed Cloud Services
+- **Frontend**: Deploy `frontend/` to Vercel or Cloudflare Pages with build argument `VITE_API_URL=https://api.yourdomain.com/api/v1`.
+- **Backend API & Celery Worker**: Deploy on Render or Railway from `backend/Dockerfile` as two instances (one web service for Gunicorn/FastAPI, one background worker for Celery).
+- **Databases**: Use managed PostgreSQL (Neon, Supabase) and managed Redis (Upstash).
+
+### Production Pre-Flight Checklist
+- Generate a cryptographically secure `JWT_SECRET`: `python -c "import secrets; print(secrets.token_hex(32))"`
+- Restrict `CORS_ORIGINS` to the exact production frontend domain.
+- Configure production SMTP credentials in `.env`.
+- Remove `python seed.py` from the backend startup command after the initial run to prevent re-seeding default demo credentials.
+
