@@ -76,6 +76,15 @@ docker compose up --build
 
 ---
 
+## 📧 Email Notifications (Gmail SMTP)
+
+QueueLess dispatches transactional emails for appointment confirmations, upcoming reminders, and password resets:
+- **Asynchronous Delivery**: Fast, non-blocking requests. Emails are stored as pending records in PostgreSQL and swept every 30 seconds by a background **Celery Beat** worker.
+- **Gmail SMTP Integration**: Works out-of-the-box via Gmail with a [16-character App Password](https://myaccount.google.com/apppasswords) configured in `.env`.
+- **Fault-Tolerant & Retry-Safe**: Uses `SELECT FOR UPDATE SKIP LOCKED` so concurrent worker processes never double-deliver emails. If Gmail hits its daily free limit (500 emails/day) or experiences a timeout, Celery automatically retries with backoff without losing pending emails.
+
+---
+
 ## 🏆 Key Engineering Highlights
 
 1. **Transactional FIFO Queue (Zero Token Collisions)**:
