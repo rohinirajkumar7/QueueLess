@@ -1,0 +1,13 @@
+
+import {useQuery} from '@tanstack/react-query';
+import {api,apiError} from '../services/api';
+import {useParams,useNavigate} from 'react-router-dom';
+import {useState} from 'react';
+import {Icon} from '../components/Icons';
+
+export default function OrgDetails(){
+ const {id}=useParams(); const nav=useNavigate(); const [error,setError]=useState('');
+ const q=useQuery({queryKey:['services',id],queryFn:async()=>{const r=await api.get(`/organizations/${id}/services`);return r.data},enabled:Boolean(id)});
+ async function join(serviceId:string){if(!localStorage.getItem('access_token')) return nav('/login/customer');setError('');try{const r=await api.post(`/services/${serviceId}/queue/join`);nav(`/queue/${r.data.queue_id}`)}catch(e){setError(apiError(e,'Unable to join this queue.'))}}
+ return <div className="page-wrap py-10 sm:py-14"><button className="mb-5 text-sm font-bold text-slate-500 hover:text-slate-900" onClick={()=>nav('/organizations')}>← Back to organizations</button><div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end"><div><p className="text-sm font-bold uppercase tracking-[.16em] text-indigo-600">Services</p><h1 className="mt-2 text-4xl font-black">Choose what you need</h1><p className="mt-2 text-slate-500">Join a live queue in a few seconds.</p></div><span className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-700"><span className="h-2 w-2 rounded-full bg-emerald-500"/> Queues open</span></div>{error&&<div className="mt-6 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm font-semibold text-rose-700">{error}</div>}<div className="mt-8 grid gap-5 md:grid-cols-2">{q.isLoading?<div className="card p-8 text-slate-500">Loading services...</div>:q.data?.map((s:any)=><div className="card p-6" key={s.id}><div className="flex items-start justify-between"><span className="grid h-11 w-11 place-items-center rounded-xl bg-indigo-50 text-indigo-600"><Icon name="queue"/></span><span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">{s.code}</span></div><h2 className="mt-6 text-xl font-black">{s.name}</h2><p className="mt-2 min-h-10 text-sm text-slate-500">{s.description||'Service available through QueueLess.'}</p><div className="mt-5 flex items-center gap-4 text-sm text-slate-500"><span className="flex items-center gap-1.5"><Icon name="clock" size={15}/>{s.average_service_time} min avg.</span><span className="flex items-center gap-1.5"><Icon name="users" size={15}/>Capacity {s.queue_capacity}</span></div><button className="btn btn-primary mt-6 w-full" onClick={()=>join(s.id)}>Join queue <Icon name="arrow" size={16}/></button></div>)}</div></div>
+}
