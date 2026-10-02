@@ -32,7 +32,7 @@ services:
     environment:
       DATABASE_URL: postgresql+asyncpg://queueless:queueless@db:5432/queueless
       REDIS_URL: redis://redis:6379/0
-      JWT_SECRET: ${JWT_SECRET:-64b2f452a8d1007eac5f38e051cf88053c10aa616becaa03cee6638bc60704c0}
+      JWT_SECRET: ${JWT_SECRET:-your-key}
       JWT_ALGORITHM: HS256
       ACCESS_TOKEN_EXPIRE_MINUTES: 30
       REFRESH_TOKEN_EXPIRE_DAYS: 7
