@@ -13,6 +13,7 @@ celery==5.5.3
 prometheus-client==0.22.1
 email-validator==2.3.0
 httpx==0.28.1
+slowapi==0.1.9
 pytest==8.4.2
 pytest-asyncio==1.2.0
 aiosqlite==0.21.0

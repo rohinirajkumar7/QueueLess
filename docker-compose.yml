@@ -32,7 +32,7 @@ services:
     environment:
       DATABASE_URL: postgresql+asyncpg://queueless:queueless@db:5432/queueless
       REDIS_URL: redis://redis:6379/0
-      JWT_SECRET: ${JWT_SECRET:-your-key}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set}
       JWT_ALGORITHM: HS256
       ACCESS_TOKEN_EXPIRE_MINUTES: 30
       REFRESH_TOKEN_EXPIRE_DAYS: 7
@@ -44,6 +44,9 @@ services:
       EMAIL_FROM: ${EMAIL_FROM:-noreply@queueless.local}
       FRONTEND_URL: http://localhost:5173
       LOG_LEVEL: INFO
+      RATE_LIMIT_LOGIN: ${RATE_LIMIT_LOGIN:-5/minute}
+      RATE_LIMIT_QUEUE_JOIN: ${RATE_LIMIT_QUEUE_JOIN:-10/minute}
+      RATE_LIMIT_GENERAL: ${RATE_LIMIT_GENERAL:-100/minute}
     ports:
       - "8000:8000"
     depends_on:
@@ -68,7 +71,7 @@ services:
     environment:
       DATABASE_URL: postgresql+asyncpg://queueless:queueless@db:5432/queueless
       REDIS_URL: redis://redis:6379/0
-      JWT_SECRET: ${JWT_SECRET:-your-key}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set}
       EMAIL_HOST: ${EMAIL_HOST:-}
       EMAIL_PORT: ${EMAIL_PORT:-587}
       EMAIL_USERNAME: ${EMAIL_USERNAME:-}

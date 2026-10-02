@@ -289,3 +289,72 @@ def cleanup_notifications(self):
         raise
     finally:
         db.close()
+
+
+# ---------------------------------------------------------------------------
+# Task: cleanup_test_users  (beat — every 10 minutes)
+# ---------------------------------------------------------------------------
+
+@celery.task(
+    bind=True,
+    autoretry_for=(Exception,),
+    retry_backoff=True,
+    max_retries=3,
+    name="app.workers.tasks.cleanup_test_users",
+)
+def cleanup_test_users(self):
+    """
+    Delete k6 load-test users (email like %@k6loadtest.io) and all their
+    related data (queue tokens, notifications).  Runs every 10 minutes so
+    test data never lingers in the live DB for more than one check interval.
+    """
+    from app.models.models import QueueToken, Queue
+    db = SyncSessionLocal()
+    try:
+        test_users = db.scalars(
+            select(User).where(User.email.like("%@k6loadtest.io"))
+        ).all()
+
+        if not test_users:
+            return {"deleted_users": 0}
+
+        user_ids = [u.id for u in test_users]
+
+        # Delete queue tokens belonging to test users
+        tokens_result = db.execute(
+            delete(QueueToken).where(QueueToken.user_id.in_(user_ids))
+        )
+
+        # Delete notifications belonging to test users
+        notifs_result = db.execute(
+            delete(Notification).where(Notification.user_id.in_(user_ids))
+        )
+
+        # Delete the test user accounts themselves
+        users_result = db.execute(
+            delete(User).where(User.id.in_(user_ids))
+        )
+
+        # Delete any queues that are now empty (no tokens remaining)
+        db.execute(
+            delete(Queue).where(
+                Queue.id.not_in(
+                    select(QueueToken.queue_id).distinct()
+                )
+            )
+        )
+
+        db.commit()
+        deleted_users = users_result.rowcount or 0
+        deleted_tokens = tokens_result.rowcount or 0
+        logger.info(
+            "test_users_cleaned",
+            extra={"deleted_users": deleted_users, "deleted_tokens": deleted_tokens},
+        )
+        return {"deleted_users": deleted_users, "deleted_tokens": deleted_tokens}
+    except Exception:
+        db.rollback()
+        raise
+    finally:
+        db.close()
+

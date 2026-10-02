@@ -8,7 +8,7 @@ QueueLess is a full-stack, multi-tenant SaaS application that replaces physical 
 
 | Layer | Technologies |
 |---|---|
-| **Frontend** | React 18, TypeScript, Vite, Tailwind CSS, TanStack Query |
+| **Frontend** | React 19, TypeScript, Vite, Tailwind CSS, TanStack Query |
 | **Backend API** | FastAPI, Python 3.12, SQLAlchemy 2 (Async), asyncpg, Pydantic v2 |
 | **Database** | PostgreSQL 16 (Single source of truth) |
 | **Caching & Broker** | Redis 7 |
@@ -17,6 +17,54 @@ QueueLess is a full-stack, multi-tenant SaaS application that replaces physical 
 | **Real-Time** | WebSockets + polling fallback |
 | **Testing & Load** | Pytest, Playwright (E2E), Grafana k6 |
 | **DevOps** | Docker & Docker Compose, Gunicorn + Uvicorn workers |
+
+
+---
+
+## Screenshots & UI Showcase
+
+### 1. Landing & Role Portals
+Digital queue platform landing page with direct role navigation and real-time waiting line highlights.
+
+![Landing Page Hero](docs/screenshots/01-landing-hero.png)
+
+![Role Portals & Capabilities](docs/screenshots/02-portals-overview.png)
+
+---
+
+### 2. Customer Portal & Real-Time Queueing
+Customers browse services, join digital queues remotely, track live positions, schedule appointments, and receive status updates.
+
+![Customer Overview](docs/screenshots/07-customer-overview.png)
+
+![Live Queue Token](docs/screenshots/08-live-queue-token.png)
+
+![Customer Appointments](docs/screenshots/09-customer-appointments.png)
+
+![Customer Notifications](docs/screenshots/06-customer-notifications.png)
+
+---
+
+### 3. Staff Counter Console
+Staff counter console for operating assigned queues in real time — calling the next token, starting service, completing, skipping, or recalling customers.
+
+![Staff Portal & Queue Controls](docs/screenshots/05-staff-portal.png)
+
+---
+
+### 4. Organization Administration
+Dedicated management portal for creating services with custom capacities and average service times, configuring operating hours, and assigning staff members.
+
+![Organization Admin Login](docs/screenshots/03-org-admin-login.png)
+
+![Organization Admin Dashboard](docs/screenshots/04-org-admin-dashboard.png)
+
+---
+
+### 5. Transactional Email Delivery
+Asynchronous transactional emails dispatched via Celery background workers and Gmail SMTP for appointment reminders and secure password resets.
+
+![Transactional Email](docs/screenshots/10-email-password-reset.png)
 
 ---
 
@@ -45,6 +93,8 @@ QueueLess/
 │   │   └── store/           # Zustand authentication state
 │   ├── e2e/                 # Playwright end-to-end test specs
 │   └── Dockerfile
+├── docs/
+│   └── screenshots/         # UI showcase and preview images
 ├── loadtests/
 │   └── queueless.js         # k6 stress test script (100 concurrent VUs)
 └── docker-compose.yml       # Orchestrates DB, Redis, Backend, Worker, & Frontend
@@ -81,7 +131,7 @@ docker compose up --build
 QueueLess dispatches transactional emails for appointment confirmations, upcoming reminders, and password resets:
 - **Asynchronous Delivery**: Fast, non-blocking requests. Emails are stored as pending records in PostgreSQL and swept every 30 seconds by a background Celery Beat worker.
 - **Gmail SMTP Integration**: Works out-of-the-box via Gmail with a 16-character App Password configured in `.env`.
-- **Fault-Tolerant & Retry-Safe**: Uses `SELECT FOR UPDATE SKIP LOCKED` so concurrent worker processes never double-deliver emails. If Gmail hits its daily free limit (500 emails/day) or experiences a timeout, Celery automatically retries with backoff without losing pending emails.
+- **Fault-Tolerant Delivery**: Uses `SELECT FOR UPDATE SKIP LOCKED` so concurrent worker processes never double-deliver emails. Transient delivery errors (SMTP/network exceptions) are retried via Celery's autoretry with backoff, but once a notification is explicitly marked FAILED (e.g. permanent SMTP rejection, or no SMTP configured) it is not re-queued by the sweeper, since the sweeper only selects PENDING rows (see Known Limitations).
 
 ---
 
@@ -100,14 +150,25 @@ QueueLess dispatches transactional emails for appointment confirmations, upcomin
    - Organization and service directories are cached in Redis with a 45-second TTL.
    - Automatically invalidated on updates/creates, delivering sub-180ms read responses.
 
-4. **Resilient Real-Time Updates (WebSocket + Polling Fallback)**:
-   - Live queue updates stream over WebSockets with an automatic TanStack Query polling fallback, ensuring zero UI disruption during network drops.
+4. **Resilient Real-Time Updates (WebSocket + Redis Pub/Sub + Polling Fallback)**:
+   - WebSocket updates now fan out correctly across all worker processes via Redis Pub/Sub (`ws:queue:{queue_id}`), broadcasting live queue changes to connected clients across workers. An automatic TanStack Query polling fallback provides resilience during network drops.
 
 5. **Atomic Appointment Conflict Prevention**:
-   - Time-slot validation executes inside strict database transactions, preventing double-booking when multiple customers attempt to book the same staff or time slot concurrently.
+   - Time-slot validation executes inside strict database transactions, preventing double-booking the same service's time slot; does not yet prevent double-booking a specific staff member across services.
 
 6. **Test Data Isolation (`is_test` Architecture)**:
    - CI and k6 load test organizations are tagged with an `is_test` flag and composite indexes, ensuring high-concurrency benchmarks never pollute customer-facing organization directories.
+
+7. **Enforced Rate Limiting**:
+   - Real rate limiting is now enforced using SlowAPI backed by Redis (with graceful in-memory fallback), pulling limits directly from `config.py`: login, registration, and password reset are limited to 5 requests/minute (`rate_limit_login`), queue join to 10 requests/minute (`rate_limit_queue_join`), and general endpoints to 100 requests/minute (`rate_limit_general`).
+
+---
+
+## Known Limitations
+
+- **Email Sweeper Error Recovery**: The Celery Beat sweeper only selects `PENDING` notifications. Transient network/SMTP failures retry with backoff, but once a record is marked `FAILED` (e.g., permanent SMTP rejection or missing SMTP credentials), it is not automatically re-queued.
+- **Cross-Service Staff Scheduling**: Appointment overlap validation guarantees slot uniqueness per service, but does not yet prevent scheduling collisions for the same staff member assigned across multiple services.
+- **Test Coverage Depth**: While all critical concurrency, RBAC, tenant isolation, and rate-limiting paths are verified (20 automated backend pytest tests and 1 Playwright end-to-end spec), edge-case coverage across full administrative workflows remains thin relative to total surface area.
 
 ---
 
@@ -175,5 +236,6 @@ Best for cost efficiency (e.g., AWS EC2, DigitalOcean, Hetzner, or Linode):
 - Generate a cryptographically secure `JWT_SECRET`: `python -c "import secrets; print(secrets.token_hex(32))"`
 - Restrict `CORS_ORIGINS` to the exact production frontend domain.
 - Configure production SMTP credentials in `.env`.
+- Tune rate limiting thresholds via environment variables if desired (`RATE_LIMIT_LOGIN`, `RATE_LIMIT_QUEUE_JOIN`, `RATE_LIMIT_GENERAL`).
 - Remove `python seed.py` from the backend startup command after the initial run to prevent re-seeding default demo credentials.
 

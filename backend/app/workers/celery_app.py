@@ -45,5 +45,9 @@ celery.conf.update(
             "task": "app.workers.tasks.cleanup_notifications",
             "schedule": 3600.0,  # every hour
         },
+        "cleanup-test-users": {
+            "task": "app.workers.tasks.cleanup_test_users",
+            "schedule": 600.0,  # every 10 minutes
+        },
     },
 )

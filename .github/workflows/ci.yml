@@ -173,6 +173,9 @@ jobs:
     env:
       DATABASE_URL: postgresql+asyncpg://queueless:queueless@localhost:5432/queueless_dev
       JWT_SECRET: ci-test-secret
+      RATE_LIMIT_LOGIN: "10000/minute"
+      RATE_LIMIT_QUEUE_JOIN: "10000/minute"
+      RATE_LIMIT_GENERAL: "10000/minute"
     steps:
       - uses: actions/checkout@v4
 
