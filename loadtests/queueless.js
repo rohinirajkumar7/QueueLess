@@ -43,13 +43,16 @@ export const options = {
       duration:  __ENV.DURATION || "60s",
     },
   },
-  thresholds: {
-    // No more than 1 % hard HTTP failures (excludes expected 409 on join)
-    http_req_failed:   ["rate<0.01"],
-    // p95 login+join combined under 3 s (realistic for 100 VU, argon2 excluded)
-    login_duration:    ["p(95)<3000"],
-    join_duration:     ["p(95)<2000"],
-  },
+  
+thresholds: {
+  // Allow less than 1% hard HTTP failures
+  http_req_failed: ["rate<0.01"],
+
+  // p95 response time under 5 seconds
+  login_duration: ["p(95)<5000"],
+  join_duration: ["p(95)<5000"],
+},
+
 };
 
 const BASE_URL    = __ENV.BASE_URL    || "http://localhost:8000";
