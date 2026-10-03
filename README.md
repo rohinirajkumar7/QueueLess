@@ -164,12 +164,6 @@ QueueLess dispatches transactional emails for appointment confirmations, upcomin
 
 ---
 
-## Known Limitations
-
-- **Email Sweeper Error Recovery**: The Celery Beat sweeper only selects `PENDING` notifications. Transient network/SMTP failures retry with backoff, but once a record is marked `FAILED` (e.g., permanent SMTP rejection or missing SMTP credentials), it is not automatically re-queued.
-- **Cross-Service Staff Scheduling**: Appointment overlap validation guarantees slot uniqueness per service, but does not yet prevent scheduling collisions for the same staff member assigned across multiple services.
-- **Test Coverage Depth**: While all critical concurrency, RBAC, tenant isolation, and rate-limiting paths are verified (20 automated backend pytest tests and 1 Playwright end-to-end spec), edge-case coverage across full administrative workflows remains thin relative to total surface area.
-
 ---
 
 ## Verification & Test Results
