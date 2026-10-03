@@ -226,10 +226,5 @@ Best for cost efficiency (e.g., AWS EC2, DigitalOcean, Hetzner, or Linode):
 - **Backend API & Celery Worker**: Deploy on Render or Railway from `backend/Dockerfile` as two instances (one web service for Gunicorn/FastAPI, one background worker for Celery).
 - **Databases**: Use managed PostgreSQL (Neon, Supabase) and managed Redis (Upstash).
 
-### Production Pre-Flight Checklist
-- Generate a cryptographically secure `JWT_SECRET`: `python -c "import secrets; print(secrets.token_hex(32))"`
-- Restrict `CORS_ORIGINS` to the exact production frontend domain.
-- Configure production SMTP credentials in `.env`.
-- Tune rate limiting thresholds via environment variables if desired (`RATE_LIMIT_LOGIN`, `RATE_LIMIT_QUEUE_JOIN`, `RATE_LIMIT_GENERAL`).
-- Remove `python seed.py` from the backend startup command after the initial run to prevent re-seeding default demo credentials.
+
 
